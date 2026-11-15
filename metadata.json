@@ -1,0 +1,6 @@
+{
+  "name": "VitrineApkAc — Loja de Aplicativos & Analytics",
+  "description": "Plataforma de vitrine e venda de aplicativos personalizáveis com sistema integrado de contador de visitantes, monitoramento em tempo real e conformidade LGPD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
