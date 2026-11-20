@@ -10,6 +10,8 @@ import type {
   AnalyticsScope,
   DateRangePreset,
   PaymentPlan,
+  QuotePriority,
+  QuoteWorkflowStatus,
   SellerName,
   TrackEventPayload,
 } from './src/types/analytics';
@@ -350,6 +352,68 @@ async function startServer() {
   app.delete('/api/admin/alerts/notifications/read', requireAdminAuth, (_req, res) => {
     const overview = analyticsStore.clearReadNotifications();
     res.json(overview);
+  });
+
+  // Public customer quote request endpoint (stores solicitation and notifies admin)
+  app.post('/api/quotes', (req, res) => {
+    const body = (req.body || {}) as {
+      customerName?: string;
+      tradeName?: string;
+      documentNumber?: string;
+      address?: string;
+      phone?: string;
+      activityType?: string;
+      description?: string;
+      selectedFeatures?: string[];
+      priority?: QuotePriority;
+    };
+
+    if (
+      !body.customerName?.trim() ||
+      !body.tradeName?.trim() ||
+      !body.documentNumber?.trim() ||
+      !body.address?.trim() ||
+      !body.activityType?.trim() ||
+      !body.description?.trim()
+    ) {
+      res.status(400).json({
+        error: 'Preencha nome, nome fantasia, CPF ou CNPJ, endereço, atividade e descrição do pedido.',
+      });
+      return;
+    }
+
+    const quote = analyticsStore.createQuoteRequest({
+      customerName: body.customerName,
+      tradeName: body.tradeName,
+      documentNumber: body.documentNumber,
+      address: body.address,
+      phone: body.phone,
+      activityType: body.activityType,
+      description: body.description.slice(0, 900),
+      selectedFeatures: Array.isArray(body.selectedFeatures) ? body.selectedFeatures : [],
+      priority: body.priority || '30 dias',
+    });
+
+    res.status(201).json({ ok: true, protocolCode: quote.protocolCode, quote });
+  });
+
+  // Confidential Admin Quote Requests endpoints
+  app.get('/api/admin/quotes', requireAdminAuth, (_req, res) => {
+    res.json({ quotes: analyticsStore.getQuoteRequests() });
+  });
+
+  app.patch('/api/admin/quotes/:id/status', requireAdminAuth, (req, res) => {
+    const { workflowStatus } = (req.body || {}) as { workflowStatus?: QuoteWorkflowStatus };
+    if (!workflowStatus) {
+      res.status(400).json({ error: 'Status do orçamento é obrigatório.' });
+      return;
+    }
+    const updated = analyticsStore.updateQuoteStatus(req.params.id, workflowStatus);
+    if (!updated) {
+      res.status(404).json({ error: 'Solicitação de orçamento não encontrada.' });
+      return;
+    }
+    res.json({ quote: updated, quotes: analyticsStore.getQuoteRequests() });
   });
 
   // Confidential Analytics endpoints — strictly protected by requireAdminAuth

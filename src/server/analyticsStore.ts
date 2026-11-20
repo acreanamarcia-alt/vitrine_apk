@@ -15,6 +15,9 @@ import type {
   FinancialSummaryResponse,
   PaymentPlan,
   PrivacySettings,
+  QuotePriority,
+  QuoteRequestRecord,
+  QuoteWorkflowStatus,
   SaleRecord,
   SellerCommissionSummary,
   SellerName,
@@ -77,6 +80,7 @@ interface PersistedDatabase {
   salesLedger: SaleRecord[];
   alertRules: AlertRule[];
   alertNotifications: AlertNotification[];
+  quoteRequests: QuoteRequestRecord[];
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -509,7 +513,54 @@ function buildInitialDatabase(): PersistedDatabase {
     salesLedger: buildInitialSalesLedger(),
     alertRules: buildInitialAlertRules(),
     alertNotifications: [],
+    quoteRequests: buildInitialQuoteRequests(),
   };
+}
+
+function buildInitialQuoteRequests(): QuoteRequestRecord[] {
+  const now = Date.now();
+  return [
+    {
+      id: 'quote-seed-01',
+      protocolCode: 'ORC-2026-1041',
+      createdAt: new Date(now - 2 * 86_400_000).toISOString(),
+      customerName: 'Roberto Nascimento',
+      tradeName: 'Açaí & Lanches do Norte',
+      documentNumber: '42.815.920/0001-18',
+      address: 'Av. Ceará, 1420 — Centro, Rio Branco - AC',
+      phone: '(68) 99912-3400',
+      activityType: 'Lanchonete e Açaí',
+      description:
+        'Preciso de um aplicativo para pedidos de açaí com escolha de tamanho, adicionais gratuitos e pagos, cálculo de taxa por bairro e envio direto do resumo no WhatsApp da lanchonete.',
+      selectedFeatures: [
+        'Cardápio Digital / Catálogo de Produtos',
+        'Carrinho e Envio de Pedido via WhatsApp',
+        'Cálculo de Entrega / Taxa por Bairro',
+      ],
+      priority: '15 dias',
+      workflowStatus: 'Em análise',
+    },
+    {
+      id: 'quote-seed-02',
+      protocolCode: 'ORC-2026-1042',
+      createdAt: new Date(now - 86_400_000).toISOString(),
+      customerName: 'Andréia Vasconcelos',
+      tradeName: 'Pizzaria Forno da Serra',
+      documentNumber: '18.402.771/0001-54',
+      address: 'Rua Rui Barbosa, 510 — Bosque, Rio Branco - AC',
+      phone: '(68) 99210-8841',
+      activityType: 'Pizzaria',
+      description:
+        'Aplicativo completo para pizzaria com montagem de pizza meio a meio, bordas recheadas, combos promocionais e domínio personalizado para divulgação nas redes sociais.',
+      selectedFeatures: [
+        'Cardápio Digital / Catálogo de Produtos',
+        'Pagamento Online (Pix e Cartão)',
+        'Criação e Instalação de Domínio (+ R$ 100,00)',
+      ],
+      priority: '10 dias',
+      workflowStatus: 'Recebido',
+    },
+  ];
 }
 
 function buildInitialAlertRules(): AlertRule[] {
@@ -597,6 +648,10 @@ class AnalyticsStore {
             }
             if (!Array.isArray(parsed.alertNotifications)) {
               parsed.alertNotifications = [];
+              dirty = true;
+            }
+            if (!Array.isArray(parsed.quoteRequests)) {
+              parsed.quoteRequests = buildInitialQuoteRequests();
               dirty = true;
             }
             if (dirty) {
@@ -1511,6 +1566,67 @@ class AnalyticsStore {
     this.saveDatabase();
     this.notify();
     return this.getAlertsOverview();
+  }
+
+  public getQuoteRequests(): QuoteRequestRecord[] {
+    return [...(this.db.quoteRequests || [])].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+  }
+
+  public createQuoteRequest(input: {
+    customerName: string;
+    tradeName: string;
+    documentNumber: string;
+    address: string;
+    phone?: string;
+    activityType: string;
+    description: string;
+    selectedFeatures: string[];
+    priority: QuotePriority;
+  }): QuoteRequestRecord {
+    if (!Array.isArray(this.db.quoteRequests)) {
+      this.db.quoteRequests = [];
+    }
+
+    const validPriority: QuotePriority =
+      input.priority === '10 dias' || input.priority === '15 dias' ? input.priority : '30 dias';
+
+    const record: QuoteRequestRecord = {
+      id: `quote-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      protocolCode: `ORC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      createdAt: new Date().toISOString(),
+      customerName: String(input.customerName || '').trim().slice(0, 100),
+      tradeName: String(input.tradeName || '').trim().slice(0, 100),
+      documentNumber: String(input.documentNumber || '').trim().slice(0, 30),
+      address: String(input.address || '').trim().slice(0, 200),
+      phone: input.phone ? String(input.phone).trim().slice(0, 30) : undefined,
+      activityType: String(input.activityType || 'Outro ramo de atividade').trim().slice(0, 80),
+      description: String(input.description || '').trim().slice(0, 900),
+      selectedFeatures: Array.isArray(input.selectedFeatures)
+        ? input.selectedFeatures.map((f) => String(f).trim()).filter(Boolean).slice(0, 15)
+        : [],
+      priority: validPriority,
+      workflowStatus: 'Recebido',
+    };
+
+    this.db.quoteRequests.unshift(record);
+    this.saveDatabase();
+    this.notify();
+    return record;
+  }
+
+  public updateQuoteStatus(
+    id: string,
+    workflowStatus: QuoteWorkflowStatus,
+  ): QuoteRequestRecord | null {
+    const quote = (this.db.quoteRequests || []).find((q) => q.id === id);
+    if (!quote) return null;
+    const allowed: QuoteWorkflowStatus[] = ['Recebido', 'Em análise', 'Orçamento enviado', 'Aprovado'];
+    quote.workflowStatus = allowed.includes(workflowStatus) ? workflowStatus : quote.workflowStatus;
+    this.saveDatabase();
+    this.notify();
+    return quote;
   }
 }
 

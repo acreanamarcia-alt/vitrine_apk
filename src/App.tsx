@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { LogOut, Shield, Bell, X, Check } from 'lucide-react';
 import { AdminDashboardView } from './components/AdminDashboardView';
 import { AdminLoginView } from './components/AdminLoginView';
+import { AdminQuotesView } from './components/AdminQuotesView';
 import { AlertsConfigView } from './components/AlertsConfigView';
 import { AppMonitoringView } from './components/AppMonitoringView';
 import { FinancialDashboardView } from './components/FinancialDashboardView';
 import { Header, type TopView } from './components/Header';
 import { LgpdBanner } from './components/LgpdBanner';
 import { PrivacyLgpdView } from './components/PrivacyLgpdView';
+import { QuoteRequestView } from './components/QuoteRequestView';
 import { StorefrontView, type CartItem } from './components/StorefrontView';
 import { ThemeToggle, type ThemeMode } from './components/ThemeToggle';
 import { TrackingSetupView } from './components/TrackingSetupView';
@@ -19,6 +21,7 @@ import type {
   AnalyticsSummaryResponse,
   DateRangePreset,
   FinancialSummaryResponse,
+  QuoteRequestRecord,
 } from './types/analytics';
 import {
   getConsentState,
@@ -26,7 +29,14 @@ import {
   setConsentState,
 } from './utils/tracker';
 
-type AdminTab = 'analytics' | 'financeiro' | 'alertas' | 'aplicativos' | 'instalacao' | 'privacidade';
+type AdminTab =
+  | 'analytics'
+  | 'financeiro'
+  | 'orcamentos'
+  | 'alertas'
+  | 'aplicativos'
+  | 'instalacao'
+  | 'privacidade';
 
 interface AdminUser {
   email: string;
@@ -81,6 +91,7 @@ export default function App() {
   const [summary, setSummary] = useState<AnalyticsSummaryResponse | null>(null);
   const [financial, setFinancial] = useState<FinancialSummaryResponse | null>(null);
   const [alertsOverview, setAlertsOverview] = useState<AlertsOverviewResponse | null>(null);
+  const [quotesList, setQuotesList] = useState<QuoteRequestRecord[]>([]);
   const [toastAlerts, setToastAlerts] = useState<AlertNotification[]>([]);
   const [publicVisitorCount, setPublicVisitorCount] = useState<{
     totalVisitors: number;
@@ -225,6 +236,24 @@ export default function App() {
     }
   }, [adminUser]);
 
+  const fetchQuotes = useCallback(async () => {
+    if (!adminUser) return;
+    try {
+      const res = await fetch('/api/admin/quotes');
+      if (res.status === 401) {
+        setAdminUser(null);
+        setQuotesList([]);
+        return;
+      }
+      if (res.ok) {
+        const data = (await res.json()) as { quotes: QuoteRequestRecord[] };
+        setQuotesList(data.quotes || []);
+      }
+    } catch {
+      // ignore transient fetch failure
+    }
+  }, [adminUser]);
+
   const pushToastAlert = useCallback((notif: AlertNotification) => {
     setToastAlerts((prev) => {
       if (prev.some((item) => item.id === notif.id)) return prev;
@@ -237,8 +266,9 @@ export default function App() {
       fetchSummary();
       fetchFinancial();
       fetchAlerts();
+      fetchQuotes();
     }
-  }, [adminUser, activeView, fetchSummary, fetchFinancial, fetchAlerts]);
+  }, [adminUser, activeView, fetchSummary, fetchFinancial, fetchAlerts, fetchQuotes]);
 
   // Automatic visitor pageview + 15s heartbeat + public visitor counter refresh on storefront
   useEffect(() => {
@@ -305,6 +335,7 @@ export default function App() {
             fetchSummary();
             fetchFinancial();
             fetchAlerts();
+            fetchQuotes();
           }
           if (msg.type === 'alert:triggered' && msg.notification) {
             if (msg.overview) {
@@ -327,7 +358,7 @@ export default function App() {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) ws.close();
     };
-  }, [adminUser, fetchSummary, fetchFinancial, fetchAlerts, pushToastAlert]);
+  }, [adminUser, fetchSummary, fetchFinancial, fetchAlerts, fetchQuotes, pushToastAlert]);
 
   const handleLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -335,6 +366,7 @@ export default function App() {
     setSummary(null);
     setFinancial(null);
     setAlertsOverview(null);
+    setQuotesList([]);
     setToastAlerts([]);
     setLiveSessions([]);
     setClientPortalAppId(null);
@@ -382,6 +414,10 @@ export default function App() {
         activeView={activeView}
         isAdminAuthenticated={Boolean(adminUser)}
         onNavigateVitrine={handleNavigateVitrine}
+        onOpenQuote={() => {
+          setActiveView('orcamento');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         onOpenAdmin={() => setActiveView('admin')}
         cartCount={cartCount}
         onOpenCart={() => setCartOpen(true)}
@@ -405,6 +441,15 @@ export default function App() {
               if (adminUser) fetchFinancial();
             }}
           />
+        ) : activeView === 'orcamento' ? (
+          <QuoteRequestView
+            theme={theme}
+            onChangeTheme={setTheme}
+            onBackToStore={() => handleNavigateVitrine()}
+            onQuoteSubmitted={() => {
+              if (adminUser) fetchQuotes();
+            }}
+          />
         ) : checkingAuth ? (
           <div className="max-w-md mx-auto py-16 px-4">
             <div className="h-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl animate-pulse" />
@@ -426,6 +471,13 @@ export default function App() {
                   [
                     { id: 'analytics', label: 'VitrineApkAc — Analytics' },
                     { id: 'financeiro', label: 'Dashboard Financeiro' },
+                    {
+                      id: 'orcamentos',
+                      label:
+                        quotesList.filter((q) => q.workflowStatus === 'Recebido').length > 0
+                          ? `Orçamentos (${quotesList.filter((q) => q.workflowStatus === 'Recebido').length})`
+                          : 'Orçamentos',
+                    },
                     {
                       id: 'alertas',
                       label:
@@ -560,6 +612,13 @@ export default function App() {
                   />
                 )}
 
+                {adminTab === 'orcamentos' && (
+                  <AdminQuotesView
+                    quotes={quotesList}
+                    onRefresh={fetchQuotes}
+                  />
+                )}
+
                 {adminTab === 'alertas' && (
                   <AlertsConfigView
                     overview={alertsOverview}
@@ -619,6 +678,16 @@ export default function App() {
               className="hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
             >
               Vitrine Pública
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('orcamento');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
+            >
+              Pedir Orçamento
             </button>
             <button
               type="button"

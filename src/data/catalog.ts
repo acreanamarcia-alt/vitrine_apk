@@ -176,3 +176,33 @@ export const STORE_ADDONS: StoreProductItem[] = [
     summary: 'Envio automático de confirmações e resumos de pedido formatados para o atendimento.',
   },
 ];
+
+export const QUOTE_ACTIVITIES: string[] = [
+  'Padaria',
+  'Lanchonete e Açaí',
+  'Sanduicheria',
+  'Pizzaria',
+  'Salão de Beleza',
+  'Barbearia',
+  'Distribuidora',
+  'Confeiteira(o)',
+  'Taxista',
+  'Motorista de Aplicativo (Uber)',
+  'Pintor Residencial',
+  'Eletricista',
+  'Outro ramo de atividade',
+];
+
+export const QUOTE_APP_TOOLS: string[] = [
+  'Cardápio Digital / Catálogo de Produtos',
+  'Agendamento Online de Horários',
+  'Carrinho e Envio de Pedido via WhatsApp',
+  'Pagamento Online (Pix e Cartão)',
+  'Cálculo de Entrega / Taxa por Bairro',
+  'Geolocalização e Rastreio de Corrida / Atendimento',
+  'Painel Administrativo Web e Relatórios',
+  'Cartão Fidelidade e Cupons Promocionais',
+  'Notificações Push para Clientes',
+  'Criação e Instalação de Domínio (+ R$ 100,00)',
+];
+

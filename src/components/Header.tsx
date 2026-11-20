@@ -1,12 +1,13 @@
 import React from 'react';
 import { Lock, ShoppingBag } from 'lucide-react';
 
-export type TopView = 'vitrine' | 'admin';
+export type TopView = 'vitrine' | 'orcamento' | 'admin';
 
 interface HeaderProps {
   activeView: TopView;
   isAdminAuthenticated: boolean;
   onNavigateVitrine: (anchorId?: string) => void;
+  onOpenQuote: () => void;
   onOpenAdmin: () => void;
   cartCount: number;
   onOpenCart: () => void;
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeView,
   isAdminAuthenticated,
   onNavigateVitrine,
+  onOpenQuote,
   onOpenAdmin,
   cartCount,
   onOpenCart,
@@ -32,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
           VitrineApkAc
         </button>
 
-        {/* Zone 2: Clean public navigation links */}
+        {/* Zone 2: Clean public navigation links (4-5 items) */}
         <nav
           aria-label="Navegação principal"
           className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300"
@@ -66,6 +68,21 @@ export const Header: React.FC<HeaderProps> = ({
             className="py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-600 rounded"
           >
             Personalização
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenQuote}
+            className={`relative py-1 transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-600 rounded ${
+              activeView === 'orcamento'
+                ? 'text-blue-700 dark:text-blue-400 font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Orçamento
+            {activeView === 'orcamento' && (
+              <span className="absolute inset-x-0 -bottom-[21px] h-0.5 bg-blue-700 dark:bg-blue-400" aria-hidden="true" />
+            )}
           </button>
 
           <button
@@ -134,6 +151,17 @@ export const Header: React.FC<HeaderProps> = ({
           className="text-xs font-medium whitespace-nowrap shrink-0 py-1 px-2 rounded text-slate-600 dark:text-slate-300"
         >
           Personalização
+        </button>
+        <button
+          type="button"
+          onClick={onOpenQuote}
+          className={`text-xs font-medium whitespace-nowrap shrink-0 py-1 px-2 rounded ${
+            activeView === 'orcamento'
+              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300'
+          }`}
+        >
+          Orçamento
         </button>
         <button
           type="button"

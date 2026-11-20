@@ -258,3 +258,28 @@ export interface AlertsOverviewResponse {
   };
 }
 
+export type QuotePriority = '10 dias' | '15 dias' | '30 dias';
+
+export type QuoteWorkflowStatus =
+  | 'Recebido'
+  | 'Em análise'
+  | 'Orçamento enviado'
+  | 'Aprovado';
+
+export interface QuoteRequestRecord {
+  id: string;
+  protocolCode: string;
+  createdAt: string;
+  customerName: string;
+  tradeName: string;
+  documentNumber: string;
+  address: string;
+  phone?: string;
+  activityType: string;
+  description: string;
+  selectedFeatures: string[];
+  priority: QuotePriority;
+  workflowStatus: QuoteWorkflowStatus;
+}
+
+
