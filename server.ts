@@ -5,11 +5,18 @@ import path from 'node:path';
 import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import { analyticsStore } from './src/server/analyticsStore';
-import type { AnalyticsScope, DateRangePreset, TrackEventPayload } from './src/types/analytics';
+import type {
+  AlertMetricType,
+  AnalyticsScope,
+  DateRangePreset,
+  PaymentPlan,
+  SellerName,
+  TrackEventPayload,
+} from './src/types/analytics';
 
 const ADMIN_COOKIE_NAME = 'vaa_admin_session';
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@vitrineapkac.com.br').toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Vitrine@2026';
+const ADMIN_LOGIN = (process.env.ADMIN_LOGIN || process.env.ADMIN_EMAIL || 'vitrine.adm').toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vintrine@2026';
 
 interface AdminSession {
   token: string;
@@ -95,6 +102,20 @@ async function startServer() {
 
   analyticsStore.subscribe(broadcastLiveUpdate);
 
+  analyticsStore.subscribeAlerts((notification) => {
+    const payload = JSON.stringify({
+      type: 'alert:triggered',
+      notification,
+      overview: analyticsStore.getAlertsOverview(),
+      timestamp: new Date().toISOString(),
+    });
+    for (const client of wss.clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    }
+  });
+
   wss.on('connection', (ws, req) => {
     const admin = getAuthenticatedAdmin(req);
     if (!admin) {
@@ -128,13 +149,17 @@ async function startServer() {
   });
 
   app.post('/api/admin/login', (req, res) => {
-    const { email, password } = (req.body || {}) as { email?: string; password?: string };
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const { email, login, password } = (req.body || {}) as {
+      email?: string;
+      login?: string;
+      password?: string;
+    };
+    const normalizedLogin = String(login || email || '').trim().toLowerCase();
     const rawPassword = String(password || '');
 
-    if (!safeCompareString(normalizedEmail, ADMIN_EMAIL) || !safeCompareString(rawPassword, ADMIN_PASSWORD)) {
+    if (!safeCompareString(normalizedLogin, ADMIN_LOGIN) || !safeCompareString(rawPassword, ADMIN_PASSWORD)) {
       res.status(401).json({
-        error: 'Credenciais de administrador inválidas.',
+        error: 'Login ou senha de administrador inválidos.',
       });
       return;
     }
@@ -143,7 +168,7 @@ async function startServer() {
     const now = Date.now();
     const session: AdminSession = {
       token,
-      email: ADMIN_EMAIL,
+      email: ADMIN_LOGIN,
       name: 'Administrador VitrineApkAc',
       createdAt: now,
       expiresAt: now + 8 * 60 * 60 * 1000, // 8 hours
@@ -185,6 +210,146 @@ async function startServer() {
     }
     const result = analyticsStore.trackEvent(body);
     res.json(result);
+  });
+
+  // Public aggregate storefront visitor counter (non-confidential counter only)
+  app.get('/api/public/visitor-count', (_req, res) => {
+    res.json(analyticsStore.getPublicVisitorCount());
+  });
+
+  // Public checkout order persistence (records sale + seller 50% commission without exposing ledger)
+  app.post('/api/orders', (req, res) => {
+    const body = (req.body || {}) as {
+      customerName?: string;
+      customerBusiness?: string;
+      itemName?: string;
+      paymentPlan?: PaymentPlan;
+      grossAmount?: number;
+      sellerName?: SellerName;
+      orderCode?: string;
+    };
+    if (!body.customerName || !body.itemName || !body.grossAmount) {
+      res.status(400).json({ error: 'Dados do pedido incompletos.' });
+      return;
+    }
+    const sale = analyticsStore.recordSale({
+      customerName: body.customerName,
+      customerBusiness: body.customerBusiness || 'Negócio Local',
+      itemName: body.itemName,
+      paymentPlan: body.paymentPlan || 'avista',
+      grossAmount: Number(body.grossAmount),
+      sellerName: body.sellerName || 'Francisco Araújo',
+      orderCode: body.orderCode,
+      status: 'Confirmada',
+    });
+    res.status(201).json({ ok: true, orderCode: sale.orderCode });
+  });
+
+  // Confidential Financial Dashboard endpoints — strictly protected by requireAdminAuth
+  app.get('/api/admin/financial', requireAdminAuth, (_req, res) => {
+    res.json(analyticsStore.getFinancialSummary());
+  });
+
+  app.post('/api/admin/financial/sales', requireAdminAuth, (req, res) => {
+    const body = (req.body || {}) as {
+      customerName?: string;
+      customerBusiness?: string;
+      itemName?: string;
+      paymentPlan?: PaymentPlan;
+      grossAmount?: number;
+      sellerName?: SellerName;
+      status?: 'Confirmada' | 'Pendente';
+    };
+    if (!body.customerName || !body.itemName || !body.grossAmount) {
+      res.status(400).json({ error: 'Preencha cliente, produto e valor da venda.' });
+      return;
+    }
+    const sale = analyticsStore.recordSale({
+      customerName: body.customerName,
+      customerBusiness: body.customerBusiness || 'Estabelecimento',
+      itemName: body.itemName,
+      paymentPlan: body.paymentPlan || 'avista',
+      grossAmount: Number(body.grossAmount),
+      sellerName: body.sellerName || 'Francisco Araújo',
+      status: body.status || 'Confirmada',
+    });
+    res.status(201).json({
+      sale,
+      summary: analyticsStore.getFinancialSummary(),
+    });
+  });
+
+  app.patch('/api/admin/financial/sales/:id/toggle', requireAdminAuth, (req, res) => {
+    const updated = analyticsStore.toggleSaleStatus(req.params.id);
+    if (!updated) {
+      res.status(404).json({ error: 'Venda não encontrada.' });
+      return;
+    }
+    res.json({
+      sale: updated,
+      summary: analyticsStore.getFinancialSummary(),
+    });
+  });
+
+  // Confidential Admin Alerts & Goal Notifications endpoints
+  app.get('/api/admin/alerts', requireAdminAuth, (_req, res) => {
+    res.json(analyticsStore.getAlertsOverview());
+  });
+
+  app.post('/api/admin/alerts/rules', requireAdminAuth, (req, res) => {
+    const body = (req.body || {}) as {
+      title?: string;
+      metric?: AlertMetricType;
+      threshold?: number;
+      enabled?: boolean;
+      notifyInUi?: boolean;
+    };
+    if (!body.title || !body.metric || !body.threshold) {
+      res.status(400).json({ error: 'Informe título, métrica e valor da meta.' });
+      return;
+    }
+    const result = analyticsStore.createAlertRule({
+      title: body.title,
+      metric: body.metric,
+      threshold: Number(body.threshold),
+      enabled: body.enabled,
+      notifyInUi: body.notifyInUi,
+    });
+    res.status(201).json(result);
+  });
+
+  app.patch('/api/admin/alerts/rules/:id', requireAdminAuth, (req, res) => {
+    const result = analyticsStore.updateAlertRule(req.params.id, req.body || {});
+    if (!result.rule) {
+      res.status(404).json({ error: 'Regra de alerta não encontrada.' });
+      return;
+    }
+    res.json(result);
+  });
+
+  app.post('/api/admin/alerts/rules/:id/rearm', requireAdminAuth, (req, res) => {
+    const overview = analyticsStore.resetAlertRule(req.params.id);
+    res.json(overview);
+  });
+
+  app.delete('/api/admin/alerts/rules/:id', requireAdminAuth, (req, res) => {
+    const overview = analyticsStore.deleteAlertRule(req.params.id);
+    res.json(overview);
+  });
+
+  app.post('/api/admin/alerts/notifications/:id/read', requireAdminAuth, (req, res) => {
+    const overview = analyticsStore.markNotificationRead(req.params.id);
+    res.json(overview);
+  });
+
+  app.post('/api/admin/alerts/notifications/read-all', requireAdminAuth, (_req, res) => {
+    const overview = analyticsStore.markAllNotificationsRead();
+    res.json(overview);
+  });
+
+  app.delete('/api/admin/alerts/notifications/read', requireAdminAuth, (_req, res) => {
+    const overview = analyticsStore.clearReadNotifications();
+    res.json(overview);
   });
 
   // Confidential Analytics endpoints — strictly protected by requireAdminAuth

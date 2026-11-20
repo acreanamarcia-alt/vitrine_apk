@@ -2,13 +2,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {
   ActiveSessionView,
+  AlertMetricType,
+  AlertNotification,
+  AlertRule,
+  AlertsOverviewResponse,
   AnalyticsScope,
   AnalyticsSummaryResponse,
   AppAnalyticsSummary,
   DailySeriesPoint,
   DateRangePreset,
   DeviceType,
+  FinancialSummaryResponse,
+  PaymentPlan,
   PrivacySettings,
+  SaleRecord,
+  SellerCommissionSummary,
+  SellerName,
   TrackEventPayload,
   TrafficSource,
 } from '../types/analytics';
@@ -65,6 +74,9 @@ interface PersistedDatabase {
     appsVisitors: number;
     purchases: number;
   }>;
+  salesLedger: SaleRecord[];
+  alertRules: AlertRule[];
+  alertNotifications: AlertNotification[];
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -162,6 +174,118 @@ function createEmptyAggregate(
     products: {},
     isBaselineSeed,
   };
+}
+
+function resolveInstallmentLabel(plan: PaymentPlan, grossAmount: number): string {
+  if (plan === '2x') {
+    const part = (grossAmount / 2).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `2x de R$ ${part}`;
+  }
+  if (plan === '3x') {
+    const part = (grossAmount / 3).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `3x de R$ ${part}`;
+  }
+  const full = grossAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `À vista · R$ ${full}`;
+}
+
+function buildInitialSalesLedger(): SaleRecord[] {
+  const now = Date.now();
+  const makeDate = (daysAgo: number) => new Date(now - daysAgo * 86_400_000).toISOString();
+
+  const seeds: Array<Omit<SaleRecord, 'commissionRate' | 'commissionAmount' | 'netAmount' | 'installmentLabel'>> = [
+    {
+      id: 'sale-seed-01',
+      orderCode: 'VAA-2601',
+      createdAt: makeDate(6),
+      customerName: 'Carlos Mendes',
+      customerBusiness: 'Barbearia Corte Fino',
+      itemName: 'Aplicativo de Barbearia',
+      paymentPlan: 'avista',
+      grossAmount: 350.0,
+      sellerName: 'Francisco Araújo',
+      sellerRole: 'Vendedor',
+      status: 'Confirmada',
+    },
+    {
+      id: 'sale-seed-02',
+      orderCode: 'VAA-2602',
+      createdAt: makeDate(5),
+      customerName: 'Juliana Ribeiro',
+      customerBusiness: 'Confeitaria Sabor Real',
+      itemName: 'Aplicativo de Confeiteira(o)',
+      paymentPlan: '2x',
+      grossAmount: 350.0,
+      sellerName: 'Karina',
+      sellerRole: 'Cunhada',
+      status: 'Confirmada',
+    },
+    {
+      id: 'sale-seed-03',
+      orderCode: 'VAA-2603',
+      createdAt: makeDate(4),
+      customerName: 'Mariana Souza',
+      customerBusiness: 'Ateliê Encanto Escolar',
+      itemName: 'Aplicativo Kit Papelaria + Criação e Instalação de Domínio',
+      paymentPlan: '3x',
+      grossAmount: 490.0,
+      sellerName: 'Karina',
+      sellerRole: 'Cunhada',
+      status: 'Confirmada',
+    },
+    {
+      id: 'sale-seed-04',
+      orderCode: 'VAA-2604',
+      createdAt: makeDate(3),
+      customerName: 'Rafael Oliveira',
+      customerBusiness: 'Studio Lumière',
+      itemName: 'Aplicativo de Salão de Beleza',
+      paymentPlan: '3x',
+      grossAmount: 390.0,
+      sellerName: 'Francisco Araújo',
+      sellerRole: 'Vendedor',
+      status: 'Confirmada',
+    },
+    {
+      id: 'sale-seed-05',
+      orderCode: 'VAA-2605',
+      createdAt: makeDate(1),
+      customerName: 'Patrícia Lima',
+      customerBusiness: 'Atelier Nail Design',
+      itemName: 'Aplicativo de Estúdio de Unhas',
+      paymentPlan: '2x',
+      grossAmount: 350.0,
+      sellerName: 'Karina',
+      sellerRole: 'Cunhada',
+      status: 'Pendente',
+    },
+    {
+      id: 'sale-seed-06',
+      orderCode: 'VAA-2606',
+      createdAt: makeDate(0),
+      customerName: 'Eduardo Almeida',
+      customerBusiness: 'Villa Pet Cuidados',
+      itemName: 'Aplicativo de Pet Shop & Banho',
+      paymentPlan: 'avista',
+      grossAmount: 350.0,
+      sellerName: 'Francisco Araújo',
+      sellerRole: 'Vendedor',
+      status: 'Confirmada',
+    },
+  ];
+
+  return seeds.map((s) => {
+    const commissionRate = s.sellerName === 'Venda Direta' ? 0 : 0.5;
+    const commissionAmount = Number((s.grossAmount * commissionRate).toFixed(2));
+    const netAmount = Number((s.grossAmount - commissionAmount).toFixed(2));
+    return {
+      ...s,
+      installmentLabel: resolveInstallmentLabel(s.paymentPlan, s.grossAmount),
+      commissionRate,
+      commissionAmount,
+      netAmount,
+    };
+  });
 }
 
 function buildInitialDatabase(): PersistedDatabase {
@@ -382,13 +506,53 @@ function buildInitialDatabase(): PersistedDatabase {
       { month: 'Out/26', storefrontVisitors: 3720, appsVisitors: 8240, purchases: 325 },
       { month: 'Nov/26', storefrontVisitors: 3900, appsVisitors: 8680, purchases: 346 },
     ],
+    salesLedger: buildInitialSalesLedger(),
+    alertRules: buildInitialAlertRules(),
+    alertNotifications: [],
   };
+}
+
+function buildInitialAlertRules(): AlertRule[] {
+  const nowIso = new Date().toISOString();
+  return [
+    {
+      id: 'alert-rule-visitors-today',
+      title: 'Meta diária de visitantes na plataforma',
+      metric: 'visitors_today',
+      threshold: 700,
+      enabled: true,
+      notifyInUi: true,
+      createdAt: nowIso,
+      lastTriggeredAt: null,
+    },
+    {
+      id: 'alert-rule-sales-revenue',
+      title: 'Meta de faturamento bruto (R$)',
+      metric: 'sales_revenue',
+      threshold: 2500,
+      enabled: true,
+      notifyInUi: true,
+      createdAt: nowIso,
+      lastTriggeredAt: null,
+    },
+    {
+      id: 'alert-rule-sales-count',
+      title: 'Meta de volume de vendas concluídas',
+      metric: 'sales_count',
+      threshold: 7,
+      enabled: true,
+      notifyInUi: true,
+      createdAt: nowIso,
+      lastTriggeredAt: null,
+    },
+  ];
 }
 
 class AnalyticsStore {
   private db: PersistedDatabase;
   private activeSessions = new Map<string, LiveSessionRecord>();
   private listeners = new Set<() => void>();
+  private alertListeners = new Set<(notification: AlertNotification) => void>();
 
   constructor() {
     this.db = this.loadDatabase();
@@ -422,6 +586,22 @@ class AnalyticsStore {
               ...ba,
               clientPortalEnabled: portalMap.get(ba.appId) ?? ba.clientPortalEnabled,
             }));
+            let dirty = false;
+            if (!Array.isArray(parsed.salesLedger) || parsed.salesLedger.length === 0) {
+              parsed.salesLedger = buildInitialSalesLedger();
+              dirty = true;
+            }
+            if (!Array.isArray(parsed.alertRules)) {
+              parsed.alertRules = buildInitialAlertRules();
+              dirty = true;
+            }
+            if (!Array.isArray(parsed.alertNotifications)) {
+              parsed.alertNotifications = [];
+              dirty = true;
+            }
+            if (dirty) {
+              this.saveDatabase(parsed);
+            }
             return parsed;
           }
           // Migrate old baseline while keeping real user-recorded events
@@ -458,10 +638,27 @@ class AnalyticsStore {
     };
   }
 
+  public subscribeAlerts(listener: (notification: AlertNotification) => void): () => void {
+    this.alertListeners.add(listener);
+    return () => {
+      this.alertListeners.delete(listener);
+    };
+  }
+
   private notify(): void {
     for (const listener of this.listeners) {
       try {
         listener();
+      } catch {
+        // ignore listener failure
+      }
+    }
+  }
+
+  private notifyAlert(notification: AlertNotification): void {
+    for (const listener of this.alertListeners) {
+      try {
+        listener(notification);
       } catch {
         // ignore listener failure
       }
@@ -584,6 +781,7 @@ class AnalyticsStore {
     }
 
     this.db.privacySettings.totalStoredEvents += 1;
+    this.evaluateAlertRules(false);
     this.saveDatabase();
     this.notify();
 
@@ -952,6 +1150,367 @@ class AnalyticsStore {
     this.saveDatabase();
     this.notify();
     return { removedRecords, privacySettings: this.db.privacySettings };
+  }
+
+  public getPublicVisitorCount(): { totalVisitors: number; todayVisitors: number; onlineNow: number } {
+    const todayYmd = formatDateYMD(new Date());
+    const storefrontRecords = this.db.dailyAggregates.filter((r) => r.scope === 'storefront');
+    const totalVisitors = storefrontRecords.reduce((acc, r) => acc + r.visitors, 0);
+    const todayVisitors = storefrontRecords
+      .filter((r) => r.date === todayYmd)
+      .reduce((acc, r) => acc + r.visitors, 0);
+    let onlineNow = 0;
+    for (const sess of this.activeSessions.values()) {
+      if (sess.scope === 'storefront') onlineNow += 1;
+    }
+    return {
+      totalVisitors,
+      todayVisitors,
+      onlineNow: Math.max(1, onlineNow),
+    };
+  }
+
+  public getFinancialSummary(): FinancialSummaryResponse {
+    const sales = [...(this.db.salesLedger || [])].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+
+    const grossRevenue = Number(
+      sales.reduce((acc, s) => acc + s.grossAmount, 0).toFixed(2),
+    );
+    const totalCommissions = Number(
+      sales.reduce((acc, s) => acc + s.commissionAmount, 0).toFixed(2),
+    );
+    const netRevenue = Number((grossRevenue - totalCommissions).toFixed(2));
+    const salesCount = sales.length;
+    const averageTicket = salesCount > 0 ? Number((grossRevenue / salesCount).toFixed(2)) : 0;
+
+    const avistaCount = sales.filter((s) => s.paymentPlan === 'avista').length;
+    const installment2xCount = sales.filter((s) => s.paymentPlan === '2x').length;
+    const installment3xCount = sales.filter((s) => s.paymentPlan === '3x').length;
+
+    const sellerDefs: Array<{ sellerName: SellerName; roleLabel: string; commissionRate: number }> = [
+      { sellerName: 'Francisco Araújo', roleLabel: 'Vendedor · Comissão 50%', commissionRate: 0.5 },
+      { sellerName: 'Karina', roleLabel: 'Cunhada / Vendedora · Comissão 50%', commissionRate: 0.5 },
+      { sellerName: 'Venda Direta', roleLabel: 'Canal Direto · Sem comissão', commissionRate: 0 },
+    ];
+
+    const sellers: SellerCommissionSummary[] = sellerDefs.map((def) => {
+      const sellerSales = sales.filter((s) => s.sellerName === def.sellerName);
+      return {
+        sellerName: def.sellerName,
+        roleLabel: def.roleLabel,
+        commissionRate: def.commissionRate,
+        salesCount: sellerSales.length,
+        totalGross: Number(sellerSales.reduce((acc, s) => acc + s.grossAmount, 0).toFixed(2)),
+        totalCommission: Number(sellerSales.reduce((acc, s) => acc + s.commissionAmount, 0).toFixed(2)),
+      };
+    });
+
+    return {
+      totals: {
+        grossRevenue,
+        totalCommissions,
+        netRevenue,
+        salesCount,
+        averageTicket,
+        avistaCount,
+        installment2xCount,
+        installment3xCount,
+      },
+      sellers,
+      sales,
+    };
+  }
+
+  public recordSale(input: {
+    customerName: string;
+    customerBusiness: string;
+    itemName: string;
+    paymentPlan: PaymentPlan;
+    grossAmount: number;
+    sellerName: SellerName;
+    status?: 'Confirmada' | 'Pendente';
+    orderCode?: string;
+  }): SaleRecord {
+    const safeGross = Number(Math.max(1, Number(input.grossAmount) || 350).toFixed(2));
+    const validPlan: PaymentPlan =
+      input.paymentPlan === '2x' || input.paymentPlan === '3x' ? input.paymentPlan : 'avista';
+    const validSeller: SellerName =
+      input.sellerName === 'Karina' || input.sellerName === 'Venda Direta'
+        ? input.sellerName
+        : 'Francisco Araújo';
+
+    const commissionRate = validSeller === 'Venda Direta' ? 0 : 0.5;
+    const commissionAmount = Number((safeGross * commissionRate).toFixed(2));
+    const netAmount = Number((safeGross - commissionAmount).toFixed(2));
+    const sellerRole =
+      validSeller === 'Karina'
+        ? 'Cunhada'
+        : validSeller === 'Francisco Araújo'
+          ? 'Vendedor'
+          : 'Canal Direto';
+
+    const record: SaleRecord = {
+      id: `sale-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      orderCode: input.orderCode || `VAA-${Math.floor(1000 + Math.random() * 9000)}`,
+      createdAt: new Date().toISOString(),
+      customerName: String(input.customerName || 'Cliente').trim().slice(0, 80),
+      customerBusiness: String(input.customerBusiness || 'Estabelecimento').trim().slice(0, 100),
+      itemName: String(input.itemName || 'Aplicativo VitrineApkAc').trim().slice(0, 180),
+      paymentPlan: validPlan,
+      installmentLabel: resolveInstallmentLabel(validPlan, safeGross),
+      grossAmount: safeGross,
+      sellerName: validSeller,
+      sellerRole,
+      commissionRate,
+      commissionAmount,
+      netAmount,
+      status: input.status === 'Pendente' ? 'Pendente' : 'Confirmada',
+    };
+
+    if (!Array.isArray(this.db.salesLedger)) {
+      this.db.salesLedger = [];
+    }
+    this.db.salesLedger.unshift(record);
+    this.evaluateAlertRules(false);
+    this.saveDatabase();
+    this.notify();
+    return record;
+  }
+
+  public toggleSaleStatus(saleId: string): SaleRecord | null {
+    const sale = (this.db.salesLedger || []).find((s) => s.id === saleId);
+    if (!sale) return null;
+    sale.status = sale.status === 'Confirmada' ? 'Pendente' : 'Confirmada';
+    this.saveDatabase();
+    this.notify();
+    return sale;
+  }
+
+  private getCurrentAlertMetrics(): AlertsOverviewResponse['currentMetrics'] {
+    const todayYmd = formatDateYMD(new Date());
+    const monthStartYmd = formatDateYMD(addDays(new Date(), -29));
+
+    const visitorsToday = this.db.dailyAggregates
+      .filter((r) => r.date === todayYmd)
+      .reduce((acc, r) => acc + r.visitors, 0);
+
+    const visitorsTotal = this.db.dailyAggregates
+      .filter((r) => r.date >= monthStartYmd && r.date <= todayYmd)
+      .reduce((acc, r) => acc + r.visitors, 0);
+
+    const sales = this.db.salesLedger || [];
+    const salesCount = sales.length;
+    const salesRevenue = Number(sales.reduce((acc, s) => acc + s.grossAmount, 0).toFixed(2));
+
+    return {
+      visitorsToday,
+      visitorsTotal,
+      salesCount,
+      salesRevenue,
+    };
+  }
+
+  private formatMetricValue(metric: AlertMetricType, value: number): string {
+    if (metric === 'sales_revenue') {
+      return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (metric === 'sales_count') {
+      return `${value.toLocaleString('pt-BR')} vendas`;
+    }
+    return `${value.toLocaleString('pt-BR')} visitantes`;
+  }
+
+  private evaluateAlertRules(persistImmediately = true): AlertNotification[] {
+    if (!Array.isArray(this.db.alertRules)) this.db.alertRules = [];
+    if (!Array.isArray(this.db.alertNotifications)) this.db.alertNotifications = [];
+
+    const metrics = this.getCurrentAlertMetrics();
+    const newlyTriggered: AlertNotification[] = [];
+    const nowIso = new Date().toISOString();
+
+    for (const rule of this.db.alertRules) {
+      if (!rule.enabled || rule.lastTriggeredAt) continue;
+
+      let actualValue = 0;
+      if (rule.metric === 'visitors_today') actualValue = metrics.visitorsToday;
+      else if (rule.metric === 'visitors_total') actualValue = metrics.visitorsTotal;
+      else if (rule.metric === 'sales_count') actualValue = metrics.salesCount;
+      else if (rule.metric === 'sales_revenue') actualValue = metrics.salesRevenue;
+
+      if (actualValue >= rule.threshold) {
+        rule.lastTriggeredAt = nowIso;
+        const notification: AlertNotification = {
+          id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ruleId: rule.id,
+          title: rule.title,
+          message: `Meta de ${this.formatMetricValue(rule.metric, rule.threshold)} atingida (atual: ${this.formatMetricValue(rule.metric, actualValue)}).`,
+          metric: rule.metric,
+          threshold: rule.threshold,
+          actualValue,
+          triggeredAt: nowIso,
+          read: false,
+        };
+        this.db.alertNotifications.unshift(notification);
+        newlyTriggered.push(notification);
+      }
+    }
+
+    if (this.db.alertNotifications.length > 50) {
+      this.db.alertNotifications = this.db.alertNotifications.slice(0, 50);
+    }
+
+    if (newlyTriggered.length > 0) {
+      if (persistImmediately) {
+        this.saveDatabase();
+      }
+      for (const notif of newlyTriggered) {
+        this.notifyAlert(notif);
+      }
+    }
+
+    return newlyTriggered;
+  }
+
+  public getAlertsOverview(): AlertsOverviewResponse {
+    const rules = [...(this.db.alertRules || [])];
+    const notifications = [...(this.db.alertNotifications || [])];
+    const unreadCount = notifications.filter((n) => !n.read).length;
+    return {
+      rules,
+      notifications,
+      unreadCount,
+      currentMetrics: this.getCurrentAlertMetrics(),
+    };
+  }
+
+  public createAlertRule(input: {
+    title: string;
+    metric: AlertMetricType;
+    threshold: number;
+    enabled?: boolean;
+    notifyInUi?: boolean;
+  }): { rule: AlertRule; triggeredNotification: AlertNotification | null; overview: AlertsOverviewResponse } {
+    if (!Array.isArray(this.db.alertRules)) this.db.alertRules = [];
+    const safeThreshold = Math.max(1, Number(input.threshold) || 1);
+    const validMetric: AlertMetricType =
+      input.metric === 'visitors_total' ||
+      input.metric === 'sales_count' ||
+      input.metric === 'sales_revenue'
+        ? input.metric
+        : 'visitors_today';
+
+    const rule: AlertRule = {
+      id: `alert-rule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: String(input.title || 'Nova meta monitorada').trim().slice(0, 120),
+      metric: validMetric,
+      threshold: safeThreshold,
+      enabled: input.enabled !== false,
+      notifyInUi: input.notifyInUi !== false,
+      createdAt: new Date().toISOString(),
+      lastTriggeredAt: null,
+    };
+
+    this.db.alertRules.unshift(rule);
+    const triggered = this.evaluateAlertRules(false);
+    this.saveDatabase();
+    this.notify();
+
+    return {
+      rule,
+      triggeredNotification: triggered.find((t) => t.ruleId === rule.id) || null,
+      overview: this.getAlertsOverview(),
+    };
+  }
+
+  public updateAlertRule(
+    id: string,
+    patch: Partial<Pick<AlertRule, 'title' | 'metric' | 'threshold' | 'enabled' | 'notifyInUi'>>,
+  ): { rule: AlertRule | null; overview: AlertsOverviewResponse } {
+    const rule = (this.db.alertRules || []).find((r) => r.id === id);
+    if (!rule) {
+      return { rule: null, overview: this.getAlertsOverview() };
+    }
+
+    if (typeof patch.title === 'string' && patch.title.trim()) {
+      rule.title = patch.title.trim().slice(0, 120);
+    }
+    if (
+      patch.metric === 'visitors_today' ||
+      patch.metric === 'visitors_total' ||
+      patch.metric === 'sales_count' ||
+      patch.metric === 'sales_revenue'
+    ) {
+      rule.metric = patch.metric;
+      rule.lastTriggeredAt = null;
+    }
+    if (typeof patch.threshold === 'number' && !Number.isNaN(patch.threshold) && patch.threshold > 0) {
+      if (patch.threshold !== rule.threshold) {
+        rule.lastTriggeredAt = null;
+      }
+      rule.threshold = patch.threshold;
+    }
+    if (typeof patch.enabled === 'boolean') {
+      rule.enabled = patch.enabled;
+    }
+    if (typeof patch.notifyInUi === 'boolean') {
+      rule.notifyInUi = patch.notifyInUi;
+    }
+
+    this.evaluateAlertRules(false);
+    this.saveDatabase();
+    this.notify();
+
+    return {
+      rule,
+      overview: this.getAlertsOverview(),
+    };
+  }
+
+  public resetAlertRule(id: string): AlertsOverviewResponse {
+    const rule = (this.db.alertRules || []).find((r) => r.id === id);
+    if (rule) {
+      rule.lastTriggeredAt = null;
+      rule.enabled = true;
+      this.evaluateAlertRules(false);
+      this.saveDatabase();
+      this.notify();
+    }
+    return this.getAlertsOverview();
+  }
+
+  public deleteAlertRule(id: string): AlertsOverviewResponse {
+    this.db.alertRules = (this.db.alertRules || []).filter((r) => r.id !== id);
+    this.saveDatabase();
+    this.notify();
+    return this.getAlertsOverview();
+  }
+
+  public markNotificationRead(id: string): AlertsOverviewResponse {
+    const notif = (this.db.alertNotifications || []).find((n) => n.id === id);
+    if (notif) {
+      notif.read = true;
+      this.saveDatabase();
+      this.notify();
+    }
+    return this.getAlertsOverview();
+  }
+
+  public markAllNotificationsRead(): AlertsOverviewResponse {
+    for (const notif of this.db.alertNotifications || []) {
+      notif.read = true;
+    }
+    this.saveDatabase();
+    this.notify();
+    return this.getAlertsOverview();
+  }
+
+  public clearReadNotifications(): AlertsOverviewResponse {
+    this.db.alertNotifications = (this.db.alertNotifications || []).filter((n) => !n.read);
+    this.saveDatabase();
+    this.notify();
+    return this.getAlertsOverview();
   }
 }
 

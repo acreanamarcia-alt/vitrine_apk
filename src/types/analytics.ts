@@ -6,6 +6,10 @@ export type DeviceType = 'mobile' | 'desktop' | 'tablet';
 
 export type TrafficSource = 'search' | 'social' | 'direct';
 
+export type PaymentPlan = 'avista' | '2x' | '3x';
+
+export type SellerName = 'Francisco Araújo' | 'Karina' | 'Venda Direta';
+
 export type TrackingEventType =
   | 'pageview'
   | 'app_view'
@@ -170,3 +174,87 @@ export interface AnalyticsSummaryResponse {
   activeSessions: ActiveSessionView[];
   privacySettings: PrivacySettings;
 }
+
+export interface SaleRecord {
+  id: string;
+  orderCode: string;
+  createdAt: string;
+  customerName: string;
+  customerBusiness: string;
+  itemName: string;
+  paymentPlan: PaymentPlan;
+  installmentLabel: string;
+  grossAmount: number;
+  sellerName: SellerName;
+  sellerRole?: string;
+  commissionRate: number; // 0.5 for 50%
+  commissionAmount: number;
+  netAmount: number;
+  status: 'Confirmada' | 'Pendente';
+}
+
+export interface SellerCommissionSummary {
+  sellerName: SellerName;
+  roleLabel: string;
+  commissionRate: number;
+  salesCount: number;
+  totalGross: number;
+  totalCommission: number;
+}
+
+export interface FinancialSummaryResponse {
+  totals: {
+    grossRevenue: number;
+    totalCommissions: number;
+    netRevenue: number;
+    salesCount: number;
+    averageTicket: number;
+    avistaCount: number;
+    installment2xCount: number;
+    installment3xCount: number;
+  };
+  sellers: SellerCommissionSummary[];
+  sales: SaleRecord[];
+}
+
+export type AlertMetricType =
+  | 'visitors_today'
+  | 'visitors_total'
+  | 'sales_count'
+  | 'sales_revenue';
+
+export interface AlertRule {
+  id: string;
+  title: string;
+  metric: AlertMetricType;
+  threshold: number;
+  enabled: boolean;
+  notifyInUi: boolean;
+  createdAt: string;
+  lastTriggeredAt: string | null;
+}
+
+export interface AlertNotification {
+  id: string;
+  ruleId: string;
+  title: string;
+  message: string;
+  metric: AlertMetricType;
+  threshold: number;
+  actualValue: number;
+  triggeredAt: string;
+  read: boolean;
+}
+
+export interface AlertsOverviewResponse {
+  rules: AlertRule[];
+  notifications: AlertNotification[];
+  unreadCount: number;
+  currentMetrics: {
+    visitorsToday: number;
+    visitorsTotal: number;
+    salesCount: number;
+    salesRevenue: number;
+  };
+}
+

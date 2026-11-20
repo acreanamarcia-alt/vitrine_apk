@@ -15,7 +15,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
   const renderSvgChart = (heightPx: number, showAllLabels: boolean) => {
     if (!data || data.length === 0) {
       return (
-        <div className="h-56 flex items-center justify-center text-sm text-slate-500">
+        <div className="h-56 flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">
           Sem dados de visitantes no período selecionado.
         </div>
       );
@@ -68,8 +68,8 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
         >
           <defs>
             <linearGradient id="vitrineAreaFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563EB" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#2563EB" stopOpacity="0.01" />
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.20" />
+              <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
             </linearGradient>
           </defs>
 
@@ -83,14 +83,14 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
                   y1={y}
                   x2={width - padR}
                   y2={y}
-                  stroke="#E2E8F0"
+                  className="stroke-slate-200 dark:stroke-slate-800"
                   strokeWidth="1"
                 />
                 <text
                   x={padL - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-slate-400 text-[10px] font-mono tabular-nums"
+                  className="fill-slate-400 dark:fill-slate-500 text-[10px] font-mono tabular-nums"
                 >
                   {tick}
                 </text>
@@ -116,7 +116,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
           {data.length > 1 && (
             <polyline
               fill="none"
-              stroke="#1D4ED8"
+              className="stroke-blue-700 dark:stroke-blue-400"
               strokeWidth="2.5"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -133,7 +133,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
                 x={getX(i)}
                 y={height - 6}
                 textAnchor="middle"
-                className="fill-slate-500 text-[10px] font-medium"
+                className="fill-slate-500 dark:fill-slate-400 text-[10px] font-medium"
               >
                 {d.label}
               </text>
@@ -147,7 +147,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
               y1={padT}
               x2={getX(activeIdx)}
               y2={padT + plotH}
-              stroke="#CBD5E1"
+              className="stroke-slate-300 dark:stroke-slate-700"
               strokeWidth="1"
             />
           )}
@@ -163,8 +163,11 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
                     cx={cx}
                     cy={cy}
                     r={isActive ? 5 : 3}
-                    fill={isActive ? '#1D4ED8' : '#FFFFFF'}
-                    stroke="#1D4ED8"
+                    className={
+                      isActive
+                        ? 'fill-blue-700 dark:fill-blue-400 stroke-blue-700 dark:stroke-blue-400'
+                        : 'fill-white dark:fill-slate-900 stroke-blue-700 dark:stroke-blue-400'
+                    }
                     strokeWidth="2"
                   />
                 )}
@@ -185,7 +188,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
         </svg>
 
         {activePoint && activeIdx !== null && (
-          <div className="mt-2 px-3 py-2 bg-slate-900 text-white rounded-lg text-xs flex flex-wrap items-center justify-between gap-4">
+          <div className="mt-2 px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg text-xs flex flex-wrap items-center justify-between gap-4">
             <span className="font-medium">
               {activePoint.label} ({activePoint.date})
             </span>
@@ -206,16 +209,16 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
 
   return (
     <>
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+            {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 text-xs text-slate-600">
+            <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-blue-700 inline-block" aria-hidden="true" />
+                <span className="w-3 h-0.5 bg-blue-700 dark:bg-blue-400 inline-block" aria-hidden="true" />
                 Período atual
               </span>
               <span className="inline-flex items-center gap-1.5">
@@ -226,7 +229,7 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Expandir gráfico</span>
@@ -240,23 +243,23 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
       {/* Expanded modal with full chart + daily tabular breakdown */}
       {expanded && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Gráfico expandido de acessos"
         >
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
-            <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-200 mb-5">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+            <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800 mb-5">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Visualização expandida com comparativo de período anterior e tabela diária
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
                 aria-label="Fechar gráfico expandido"
               >
                 <X className="w-5 h-5" />
@@ -265,9 +268,9 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
 
             {renderSvgChart(300, true)}
 
-            <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
+            <div className="mt-6 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
+                <thead className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
                   <tr>
                     <th className="py-2.5 px-4 font-semibold">Dia / Data</th>
                     <th className="py-2.5 px-4 font-semibold text-right">Visitantes</th>
@@ -276,22 +279,22 @@ export const VisitorsChart: React.FC<VisitorsChartProps> = ({ data, title, subti
                     <th className="py-2.5 px-4 font-semibold text-right">Compras</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 tabular-nums font-mono text-xs">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums font-mono text-xs">
                   {data.map((row) => (
-                    <tr key={row.date} className="hover:bg-slate-50">
-                      <td className="py-2 px-4 font-sans font-medium text-slate-800">
-                        {row.label} <span className="text-slate-400 font-normal">· {row.date}</span>
+                    <tr key={row.date} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="py-2 px-4 font-sans font-medium text-slate-800 dark:text-slate-200">
+                        {row.label} <span className="text-slate-400 dark:text-slate-500 font-normal">· {row.date}</span>
                       </td>
-                      <td className="py-2 px-4 text-right font-semibold text-slate-900">
+                      <td className="py-2 px-4 text-right font-semibold text-slate-900 dark:text-slate-100">
                         {row.visitors.toLocaleString('pt-BR')}
                       </td>
-                      <td className="py-2 px-4 text-right text-slate-500">
+                      <td className="py-2 px-4 text-right text-slate-500 dark:text-slate-400">
                         {row.previousVisitors.toLocaleString('pt-BR')}
                       </td>
-                      <td className="py-2 px-4 text-right text-slate-700">
+                      <td className="py-2 px-4 text-right text-slate-700 dark:text-slate-300">
                         {row.pageViews.toLocaleString('pt-BR')}
                       </td>
-                      <td className="py-2 px-4 text-right text-emerald-700 font-semibold">
+                      <td className="py-2 px-4 text-right text-emerald-700 dark:text-emerald-400 font-semibold">
                         {row.purchases.toLocaleString('pt-BR')}
                       </td>
                     </tr>

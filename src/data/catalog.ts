@@ -1,6 +1,34 @@
-import { AppCatalogItem, StoreProductItem } from '../types/analytics';
+import { AppCatalogItem, SellerName, StoreProductItem } from '../types/analytics';
 
 export const HERO_IMAGE_URL = '/src/assets/images/hero_vitrine_apps_1794721482341.jpg';
+
+export const APP_PRICE_AVISTA = 350.0;
+export const APP_INSTALLMENT_2X = 175.0; // 2x R$ 175,00 = R$ 350,00
+export const APP_INSTALLMENT_3X = 130.0; // 3x R$ 130,00 = R$ 390,00
+
+export interface SellerConfig {
+  name: SellerName;
+  label: string;
+  commissionRate: number;
+}
+
+export const SELLERS_CONFIG: SellerConfig[] = [
+  {
+    name: 'Francisco Araújo',
+    label: 'Francisco Araújo (Comissão 50%)',
+    commissionRate: 0.5,
+  },
+  {
+    name: 'Karina',
+    label: 'Karina — Cunhada (Comissão 50%)',
+    commissionRate: 0.5,
+  },
+  {
+    name: 'Venda Direta',
+    label: 'Venda Direta pelo Site (Sem vendedor)',
+    commissionRate: 0,
+  },
+];
 
 export const APP_CATALOG: AppCatalogItem[] = [
   {
@@ -12,7 +40,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Agenda inteligente, clube de assinatura e vitrine de produtos.',
     description:
       'Aplicativo completo para barbearias modernas com agendamento por profissional, lembrete automático no WhatsApp e pacote de corte mensal.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/app_barbearia_preview_1794721482463.jpg',
     features: [
       'Agendamento Online',
@@ -32,7 +60,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Encomendas personalizadas de bolos, cardápio diário e cálculo de entrega.',
     description:
       'Vitrine interativa para confeiteiras e confeiteiros artesanais com montagem de bolos sob encomenda, carrinho direto e envio do pedido estruturado.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/app_confeitaria_preview_1794721482653.jpg',
     features: [
       'Encomenda Sob Medida',
@@ -52,7 +80,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Catálogo de kits escolares, papelaria personalizada e orçamento por tema.',
     description:
       'Desenvolvido para papelarias criativas e ateliês com escolha de tema, personalização de nome/etiquetas, tabela de kits e envio de pedido completo.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/app_papelaria_preview_1794722585930.jpg',
     features: [
       'Montagem de Kits por Tema',
@@ -72,7 +100,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Catálogo visual de procedimentos, combos e fidelidade digital.',
     description:
       'Desenvolvido para salões de beleza e clínicas estéticas gerenciarem horários, combos promocionais e histórico de atendimento.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/app_salao_preview_1794721482894.jpg',
     features: [
       'Catálogo de Procedimentos',
@@ -92,7 +120,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Portfólio por técnica, tabela de manutenção e reserva rápida.',
     description:
       'Feito sob medida para nail designers com exibição de técnicas em gel, fibra e blindagem, além de lembrete de manutenção.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/app_unhas_preview_1794721483306.jpg',
     features: [
       'Portfólio Nail Art',
@@ -112,7 +140,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     tagline: 'Agendamento de banho e tosa, rastreio de status e loja de rações.',
     description:
       'Aplicativo completo para pet shops com status do banho em tempo real, carteira de vacinação digital e recompra rápida.',
-    price: 150.0,
+    price: APP_PRICE_AVISTA,
     imageUrl: '/src/assets/images/hero_vitrine_apps_1794721482341.jpg',
     features: [
       'Agendamento Banho e Tosa',
