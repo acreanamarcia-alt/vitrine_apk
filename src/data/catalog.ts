@@ -1,10 +1,17 @@
 import { AppCatalogItem, SellerName, StoreProductItem } from '../types/analytics';
+import heroVitrineImg from '../assets/images/hero_vitrine_apps_1794721482341.jpg';
+import barbeariaImg from '../assets/images/app_barbearia_preview_1794721482463.jpg';
+import confeitariaImg from '../assets/images/app_confeitaria_preview_1794721482653.jpg';
+import papelariaImg from '../assets/images/app_papelaria_preview_1794722585930.jpg';
+import salaoImg from '../assets/images/app_salao_preview_1794721482894.jpg';
+import unhasImg from '../assets/images/app_unhas_preview_1794721483306.jpg';
+import petshopImg from '../assets/images/app_petshop_preview_1795148964760.jpg';
 
-export const HERO_IMAGE_URL = '/src/assets/images/hero_vitrine_apps_1794721482341.jpg';
+export const HERO_IMAGE_URL = heroVitrineImg;
 
 export const APP_PRICE_AVISTA = 350.0;
-export const APP_INSTALLMENT_2X = 175.0; // 2x R$ 175,00 = R$ 350,00
-export const APP_INSTALLMENT_3X = 130.0; // 3x R$ 130,00 = R$ 390,00
+export const APP_INSTALLMENT_2X = 175.0;
+export const APP_INSTALLMENT_3X = 130.0;
 
 export interface SellerConfig {
   name: SellerName;
@@ -41,7 +48,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Aplicativo completo para barbearias modernas com agendamento por profissional, lembrete automático no WhatsApp e pacote de corte mensal.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/app_barbearia_preview_1794721482463.jpg',
+    imageUrl: barbeariaImg,
     features: [
       'Agendamento Online',
       'Seleção de Barbeiro',
@@ -61,7 +68,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Vitrine interativa para confeiteiras e confeiteiros artesanais com montagem de bolos sob encomenda, carrinho direto e envio do pedido estruturado.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/app_confeitaria_preview_1794721482653.jpg',
+    imageUrl: confeitariaImg,
     features: [
       'Encomenda Sob Medida',
       'Cardápio Pronta Entrega',
@@ -81,7 +88,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Desenvolvido para papelarias criativas e ateliês com escolha de tema, personalização de nome/etiquetas, tabela de kits e envio de pedido completo.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/app_papelaria_preview_1794722585930.jpg',
+    imageUrl: papelariaImg,
     features: [
       'Montagem de Kits por Tema',
       'Personalização de Nome e Etiquetas',
@@ -101,7 +108,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Desenvolvido para salões de beleza e clínicas estéticas gerenciarem horários, combos promocionais e histórico de atendimento.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/app_salao_preview_1794721482894.jpg',
+    imageUrl: salaoImg,
     features: [
       'Catálogo de Procedimentos',
       'Reserva por Horário',
@@ -121,7 +128,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Feito sob medida para nail designers com exibição de técnicas em gel, fibra e blindagem, além de lembrete de manutenção.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/app_unhas_preview_1794721483306.jpg',
+    imageUrl: unhasImg,
     features: [
       'Portfólio Nail Art',
       'Tabela de Manutenção',
@@ -141,7 +148,7 @@ export const APP_CATALOG: AppCatalogItem[] = [
     description:
       'Aplicativo completo para pet shops com status do banho em tempo real, carteira de vacinação digital e recompra rápida.',
     price: APP_PRICE_AVISTA,
-    imageUrl: '/src/assets/images/hero_vitrine_apps_1794721482341.jpg',
+    imageUrl: petshopImg,
     features: [
       'Agendamento Banho e Tosa',
       'Status do Atendimento',

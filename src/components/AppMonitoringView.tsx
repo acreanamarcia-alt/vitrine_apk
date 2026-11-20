@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Eye, Lock, ShoppingCart, TrendingUp, Users } from 'lucide-react';
+import { ArrowLeft, Clock, Eye, Lock, ShoppingCart, Smartphone, TrendingUp, Users } from 'lucide-react';
+import { APP_CATALOG } from '../data/catalog';
 import type { AnalyticsSummaryResponse, AppAnalyticsSummary } from '../types/analytics';
 
 interface AppMonitoringViewProps {
@@ -7,6 +8,7 @@ interface AppMonitoringViewProps {
   initialAppId?: string | null;
   onRefresh: () => void;
   onOpenClientPortal: (appId: string) => void;
+  onBackToAnalytics?: () => void;
 }
 
 function formatDuration(sec: number): string {
@@ -20,11 +22,13 @@ export const AppMonitoringView: React.FC<AppMonitoringViewProps> = ({
   initialAppId,
   onRefresh,
   onOpenClientPortal,
+  onBackToAnalytics,
 }) => {
   const [selectedId, setSelectedId] = useState<string>(
     initialAppId || summary.topApps[0]?.appId || 'barbearia',
   );
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (initialAppId) {
@@ -34,6 +38,13 @@ export const AppMonitoringView: React.FC<AppMonitoringViewProps> = ({
 
   const selectedApp: AppAnalyticsSummary | undefined =
     summary.topApps.find((a) => a.appId === selectedId) || summary.topApps[0];
+
+  const getAppImageUrl = (appId: string): string | undefined =>
+    APP_CATALOG.find((item) => item.id === appId)?.imageUrl;
+
+  const markThumbFailed = (appId: string) => {
+    setFailedThumbs((prev) => (prev[appId] ? prev : { ...prev, [appId]: true }));
+  };
 
   const handleToggleClientPortal = async (app: AppAnalyticsSummary) => {
     setTogglingId(app.appId);
@@ -64,13 +75,25 @@ export const AppMonitoringView: React.FC<AppMonitoringViewProps> = ({
     <div className="space-y-6">
       {/* Header & App Selector */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Monitoramento Individual dos Aplicativos
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-            Selecione qualquer aplicativo personalizado para acompanhar métricas exclusivas e controle de acesso do cliente.
-          </p>
+        <div className="flex flex-wrap items-center gap-3">
+          {onBackToAnalytics && (
+            <button
+              type="button"
+              onClick={onBackToAnalytics}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Voltar aos Analytics</span>
+            </button>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Monitoramento Individual dos Aplicativos
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+              Selecione qualquer aplicativo personalizado para acompanhar métricas exclusivas e controle de acesso do cliente.
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -97,12 +120,31 @@ export const AppMonitoringView: React.FC<AppMonitoringViewProps> = ({
         <div className="lg:col-span-8 space-y-6">
           {/* App Identity & Client Portal Controls */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {selectedApp.category} · Cliente: {selectedApp.clientBusinessName} · ID{' '}
-                <span className="font-mono text-slate-800 dark:text-slate-200">{selectedApp.trackingId}</span>
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-20 aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
+                {getAppImageUrl(selectedApp.appId) && !failedThumbs[selectedApp.appId] ? (
+                  <img
+                    src={getAppImageUrl(selectedApp.appId)}
+                    alt={`Miniatura do ${selectedApp.name}`}
+                    referrerPolicy="no-referrer"
+                    onError={() => markThumbFailed(selectedApp.appId)}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400">
+                    <Smartphone className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                )}
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selectedApp.name}</h3>
+              <div className="space-y-1 min-w-0">
+                <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {selectedApp.category} · Cliente: {selectedApp.clientBusinessName} · ID{' '}
+                  <span className="font-mono text-slate-800 dark:text-slate-200">{selectedApp.trackingId}</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {selectedApp.name}
+                </h3>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -255,10 +297,27 @@ export const AppMonitoringView: React.FC<AppMonitoringViewProps> = ({
                       : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}
                 >
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{app.name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {app.trackingId} · {app.clientPortalEnabled ? 'Cliente ativo' : 'Somente admin'}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-11 aspect-[4/3] rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
+                      {getAppImageUrl(app.appId) && !failedThumbs[app.appId] ? (
+                        <img
+                          src={getAppImageUrl(app.appId)}
+                          alt={`Miniatura do ${app.name}`}
+                          referrerPolicy="no-referrer"
+                          onError={() => markThumbFailed(app.appId)}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                          <Smartphone className="w-3.5 h-3.5" aria-hidden="true" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{app.name}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {app.trackingId} · {app.clientPortalEnabled ? 'Cliente ativo' : 'Somente admin'}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0 font-mono tabular-nums">

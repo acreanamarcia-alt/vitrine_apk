@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LogOut, Shield, Bell, X, Check } from 'lucide-react';
+import { ArrowLeft, LogOut, Shield, Bell, X, Check } from 'lucide-react';
 import { AdminDashboardView } from './components/AdminDashboardView';
 import { AdminLoginView } from './components/AdminLoginView';
 import { AdminQuotesView } from './components/AdminQuotesView';
@@ -516,6 +516,14 @@ export default function App() {
                 </div>
                 <button
                   type="button"
+                  onClick={() => handleNavigateVitrine()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Voltar à Vitrine</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
@@ -636,6 +644,7 @@ export default function App() {
                       setClientPortalAppId(appId);
                       setAdminTab('analytics');
                     }}
+                    onBackToAnalytics={() => setAdminTab('analytics')}
                   />
                 )}
 
